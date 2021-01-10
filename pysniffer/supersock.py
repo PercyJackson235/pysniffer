@@ -10,11 +10,11 @@ class SuperSocket(object):
        proto is the EtherType to listen for. valid options are ip, ipv6, arp, all"""
     def __init__(self, iface: str = None, proto: str = None, sock: socket.socket = None):  # noqa: E501
         if proto is None:
-            proto = osi.ethernettype['IP']  # 0x800 int cast for IP, Refers EtherType
+            proto = osi.ethernettype['ALL']  # 0x800 int cast for IP, Refers EtherType
         else:
             proto = osi.ethernettype.get(proto.upper())
             if proto is None:
-                proto = osi.ethernettype['IP']
+                proto = osi.ethernettype['ALL']
         if sock is None:
             sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(proto))  # noqa: E501
         self.sock = sock

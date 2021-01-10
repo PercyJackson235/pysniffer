@@ -22,6 +22,9 @@ class Sniffer(object):
         while True:
             try:
                 eth_header, data = decoders.ethernet(self.sock.recv())
+                # This is needed until I have decoders for all types of traffic
+                if decoders.network_layer.get(eth_header.EthType) is None:
+                    continue
                 network = ''
                 transport = ''
                 try:
