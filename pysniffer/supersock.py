@@ -1,7 +1,19 @@
 import socket
-from netifaces import gateways
+from netifaces import gateways, ifaddresses
 from typing import Union
 from pysniffer import osi
+import sys
+
+
+if any(map((lambda x: x in sys.platform.lower()), ("lin", "dar", "os2"))):
+    AF_PACKET = socket.AF_PACKET
+    address_pos = 1
+elif any(map((lambda x: x in sys.platform.lower()), ("win", "cyg"))):
+    AF_PACKET = socket.AF_INET
+    address_pos = 0
+else:
+    AF_PACKET = socket.AF_PACKET
+    address_pos = 1
 
 
 class SuperSocket(object):
@@ -17,12 +29,18 @@ class SuperSocket(object):
             if proto is None:
                 proto = osi.ethernettype['ALL']
         if sock is None:
-            sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(proto))  # noqa: E501
+            if hasattr(socket, 'AF_PACKET'):
+                sock = socket.socket(AF_PACKET, socket.SOCK_RAW, socket.htons(proto))  # noqa: E501
+            else:
+                sock = socket.socket(AF_PACKET, socket.SOCK_RAW, socket.IPPROTO_IP)
         self.sock = sock
         if iface is None:
             iface = gateways().get(socket.AF_INET)
             if iface is not None:
                 iface = iface[0][1]
+                if not hasattr(socket, 'AF_PACKET'):
+                    iface = ifaddresses(iface).get(socket.AF_INET)[0]['addr']
+                print(iface)
             else:
                 iface = gateways().get('default')
                 if iface is None:
@@ -30,8 +48,18 @@ class SuperSocket(object):
                     msg += "not find default gateway!"
                     raise OSError(msg)
                 else:
-                    iface = iface.get(socket.AF_INET)[1]
+                    iface = iface.get(socket.AF_INET)
+                    if iface is None:
+                        msg = "Was not given an interface to listen on and could "
+                        msg += "not find default gateway!"
+                        raise OSError(msg)
+                    iface = iface[address_pos]
+        print(iface)
         self.sock.bind((iface, 0))
+        if not hasattr(socket, 'AF_PACKET'):
+            self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+            self.sock.ioctl(socket.SIO_RCVALL, socket.RCVALL_ON)
+            print('hello')
 
     def close(self):
         self.sock.close()
