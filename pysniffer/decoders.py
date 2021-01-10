@@ -141,11 +141,15 @@ def pprint(eth, net, trans, data: bytes):
         result += f"Flags: {trans.TCP_Flags!s} Seq: {trans.Seq_Num} "
         result += f"Ack: {trans.Ack_Num} Win: {trans.MTU}"
     elif net_name.lower() == 'udp':
-        result += net_name + f" checksum: {trans.Checksum}, len: {trans.Length}"
+        result += net_name + f" checksum: {trans.Checksum}, len: {trans.Length}"  # noqa: E501
     elif net_name.lower() == 'icmp':
-        result += net_name + ' '.join(f"{k}: {v}" for k, v in trans._asdict().items())  # noqa: E501
+        result += net_name + ' '
+        result += ' '.join(f"{k}: {v}" for k, v in trans._asdict().items())
     try:
         data = data.decode()
     except UnicodeError:
         pass
     print(result, data)
+    if isinstance(data, str):
+        return f"{result} {data}\n".encode()
+    return result.encode() + b' ' + data + b'\n'

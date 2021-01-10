@@ -5,12 +5,13 @@ from pysniffer import osi
 
 
 class SuperSocket(object):
-    """iface is interface to listen on
-       sock is a socket.socket, don't use unless you want a very specific socket configuration
-       proto is the EtherType to listen for. valid options are ip, ipv6, arp, all"""
+    """iface is the interface to listen on.
+       sock is a socket.socket.
+            Don't use unless you want a very specific socket configuration
+       proto is the EtherType to listen for. valid options are ip, ipv6, all"""
     def __init__(self, iface: str = None, proto: str = None, sock: socket.socket = None):  # noqa: E501
         if proto is None:
-            proto = osi.ethernettype['ALL']  # 0x800 int cast for IP, Refers EtherType
+            proto = osi.ethernettype['ALL']  # Refers EtherType noqa: E501
         else:
             proto = osi.ethernettype.get(proto.upper())
             if proto is None:
@@ -37,7 +38,7 @@ class SuperSocket(object):
 
     def send(self, ip: str, packet: Union[str, bytes]):
         if not isinstance(packet, (str, bytes)):
-            raise ValueError(f"send expecting str or bytes, not {type(packet)}")
+            raise ValueError(f"send expects str or bytes, not {type(packet)}")
         if isinstance(packet, str):
             packet = packet.encode()
         return self.sock.sendto(packet, (ip, 0))
