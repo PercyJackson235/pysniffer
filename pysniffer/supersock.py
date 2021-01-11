@@ -3,6 +3,7 @@ from netifaces import gateways, ifaddresses
 from typing import Union
 from pysniffer import osi
 import sys
+import pcap
 
 
 if any(map((lambda x: x in sys.platform.lower()), ("lin", "dar", "os2"))):
@@ -32,7 +33,7 @@ class SuperSocket(object):
             if hasattr(socket, 'AF_PACKET'):
                 sock = socket.socket(AF_PACKET, socket.SOCK_RAW, socket.htons(proto))  # noqa: E501
             else:
-                sock = socket.socket(AF_PACKET, socket.SOCK_RAW, socket.IPPROTO_IP)
+                sock = socket.socket(AF_PACKET, socket.SOCK_RAW, socket.htons(0x800)) # socket.IPPROTO_IP)
         self.sock = sock
         if iface is None:
             iface = gateways().get(socket.AF_INET)
@@ -59,7 +60,9 @@ class SuperSocket(object):
         if not hasattr(socket, 'AF_PACKET'):
             self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
             self.sock.ioctl(socket.SIO_RCVALL, socket.RCVALL_ON)
-            print('hello')
+        self._pack_list = []
+        self.sock.close()
+        self.sock = pcap.pcap()
 
     def close(self):
         self.sock.close()
@@ -75,8 +78,21 @@ class SuperSocket(object):
     def fileno(self):
         return self.sock.fileno()
 
-    def recv(self, buffize: int = 65535):
-        return self.sock.recvfrom(buffize)[0]
+    if hasattr(socket, 'AF_PACKET'):
+        def recv(self, buffize: int = 65535):
+            return self.sock.recvfrom(buffize)[0]
+    else:
+        def recv(self):
+            # returns a list of tuples(milliseconds, data)
+            if len(self._pack_list) <= 1:
+                self._pack_list.extend(d for t, d in self.sock.readpkts())
+            return self._pack_list.pop(0)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return self.recv()
 
     def __enter__(self):
         return self

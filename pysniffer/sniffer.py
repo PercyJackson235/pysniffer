@@ -3,6 +3,7 @@ from pysniffer.supersock import SuperSocket
 from typing import Union
 from socket import socket
 import sys
+import signal
 
 
 class Sniffer(object):
@@ -24,6 +25,11 @@ class Sniffer(object):
                 self.log_create(logfile)
             else:
                 raise TypeError(f"logfile must be str, not {type(logfile)}.")
+        signal.signal(signal.SIGINT, self.shutdown)
+        signal.signal(signal.SIGBREAK, self.shutdown)
+
+    def end(self, a=None, b=None, c=None):
+        raise KeyboardInterrupt
 
     if any(map((lambda x: x in sys.platform.lower()), ("lin", "dar", "os2"))):
         def log_create(self, logfile):
@@ -55,21 +61,23 @@ class Sniffer(object):
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type=None, exc_val=None, exc_tb=None):
         self.shutdown()
 
-    def shutdown(self):
+    def shutdown(self, a=None, b=None, c=None):
         self.sock.close()
         if self.log:
             self.logfile.close()
+        print()
+        sys.exit(0)
 
     def start(self):
-        while True:
+        for packet in self.sock:
             try:
-                eth_header, data = decoders.ethernet(self.sock.recv())
+                eth_header, data = decoders.ethernet(packet)
                 # This is needed until I have decoders for all types of traffic
                 if decoders.network_layer.get(eth_header.EthType) is None:
-                    print(eth_header, data)
+                    continue
                 network = ''
                 transport = ''
                 try:
@@ -83,5 +91,4 @@ class Sniffer(object):
                     self.logfile.write(result)
             except KeyboardInterrupt:
                 self.shutdown()
-                print()
                 break
