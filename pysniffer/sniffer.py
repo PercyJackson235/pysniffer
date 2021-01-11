@@ -74,6 +74,11 @@ class Sniffer(object):
                 transport = ''
                 try:
                     network, data = decoders.network_layer.get(eth_header.EthType)(data)  # noqa: E501
+                    if network.__class__.__name__ == 'ARP':
+                        result = decoders.pprint(eth_header, network)
+                        if self.log:
+                            self.logfile.write(result)
+                        continue
                     transport, data = decoders.transport_layer.get(network.Proto)(data)  # noqa : E501
                 except Exception as e:
                     print(f'Error occurred: {e!r}')

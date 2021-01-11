@@ -1,5 +1,5 @@
 import struct
-import binascii
+from binascii import hexlify
 import socket
 from typing import Union
 from enum import IntFlag
@@ -9,13 +9,17 @@ from pysniffer import osi
 def ethernet(packet: bytes):
     header, payload = packet[:14], packet[14:]
     header = struct.unpack("!6s6s2s", header)
-    header = tuple(map((lambda x: binascii.hexlify(x)), header))
+    header = tuple(map((lambda x: hexlify(x)), header))
     headers = []
     for mac in header[:2]:
-        mac = mac.decode()
-        headers.append(':'.join(mac[i:i + 2] for i in range(0, len(mac), 2)))
+        headers.append(format_mac(mac))
     headers.append(int(header[-1].decode(), 16))
     return osi.ether_packet(*headers), payload
+
+
+def format_mac(mac: bytes):
+    mac = mac.decode()
+    return ':'.join(mac[i:i + 2] for i in range(0, len(mac), 2)).upper()
 
 
 IPV4_MIN = 20
@@ -123,27 +127,52 @@ def icmp_unpack(packet: bytes, sep: int, fmt: str):
     return header, payload
 
 
+def arp(packet: bytes):
+    static, packet = packet[:8], packet[8:]
+    static = list(struct.unpack("!HHBBH", static))
+    hln, pln = static[2], static[3]
+    sep = (static[2] * 2) + (static[3] * 2)
+    msg, packet = packet[:sep], packet[sep:]
+    msg = list(struct.unpack(f"{hln}s{pln}s{hln}s{pln}s", msg))
+    msg[0], msg[2] = format_mac(hexlify(msg[0])), format_mac(hexlify(msg[2]))
+    msg[1], msg[3] = socket.inet_ntoa(msg[1]), socket.inet_ntoa(msg[3])
+    headers = [*static] + [*msg]
+    return osi.arp_packet(*headers), packet
+
+
 # 0x86DD is ipv6, 0x0806 is arp
-network_layer = {0x800: ipv4, 0x86DD: None, 0x0806: None}
+network_layer = {0x800: ipv4, 0x86DD: None, 0x0806: arp}
 transport_layer = {6: tcp, 17: udp, 1: icmp}
 
 
-def pprint(eth, net, trans, data: bytes):
-    result = f"S-MAC: {eth.Source_MAC} > D-MAC: {eth.Dest_MAC}| "
-    net_name = trans.__class__.__name__
+def pprint(eth, net, trans=None, data: bytes = None):
+    result = f"S-MAC: {eth.Source_MAC} > D-MAC: {eth.Dest_MAC} | "
+    net_name = net.__class__.__name__
+    if net_name.lower() == 'arp':
+        result += f"{net_name} : "
+        result += f"{osi.arp_opcodes.get(net.OPCode, 'Unknown')} - "
+        if net.OPCode == 1:
+            result += f"Who as {net.DestProtoAddr}? Tell {net.SenderProtoAddr}"
+        elif net.OPCode == 2:
+            result += f"{net.SenderProtoAddr} is at {net.SenderHWAddr}"
+        else:
+            result += ' '.join(f"{k}={v}".lower() for k, v in net._asdict().items())  # noqa: E501
+        print(result)
+        return result
     if hasattr(trans, 'Source_Port'):
         result += net_name + f" {net.Source_IP}:{trans.Source_Port} "
         result += f"> {net.Dest_IP}:{trans.Dest_Port} | "
     else:
         result += net_name + f" {net.Source_IP} > {net.Dest_IP} | "
-    if net_name.lower() == 'tcp':
-        result += f"{net_name} "
+    trans_name = trans.__class__.__name__
+    if trans_name.lower() == 'tcp':
+        result += f"{trans_name} "
         result += f"Flags: {trans.TCP_Flags!s} Seq: {trans.Seq_Num} "
         result += f"Ack: {trans.Ack_Num} Win: {trans.MTU}"
-    elif net_name.lower() == 'udp':
-        result += net_name + f" checksum: {trans.Checksum}, len: {trans.Length}"  # noqa: E501
-    elif net_name.lower() == 'icmp':
-        result += net_name + ' '
+    elif trans_name.lower() == 'udp':
+        result += trans_name + f" checksum: {trans.Checksum}, len: {trans.Length}"  # noqa: E501
+    elif trans_name.lower() == 'icmp':
+        result += trans_name + ' '
         result += ' '.join(f"{k}: {v}" for k, v in trans._asdict().items())
     try:
         data = data.decode()

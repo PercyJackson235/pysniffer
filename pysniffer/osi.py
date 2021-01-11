@@ -15,11 +15,19 @@ udp_packet = namedtuple('UDP', ('Source_Port', 'Dest_Port', 'Length',
 
 ether_packet = namedtuple('Ethernet', ['Dest_MAC', 'Source_MAC', 'EthType'])
 
+arp_packet = namedtuple('ARP', ('HWType', 'ProtoType', 'HWLength', 'ProtoLength',  # noqa: E501
+                                'OPCode', 'SenderHWAddr', 'SenderProtoAddr',
+                                'DestHWAddr', 'DestProtoAddr'))
+
+arp_opcodes = {1: 'ARP Request', 2: 'ARP Reply', 3: 'RARP Request',
+               4: 'RARP Reply', 5: 'DRARP Request', 6: 'DRARP Reply',
+               7: 'DRARP ERROR', 8: 'InARP Request', 9: 'InARP Reply'}
+
 base = ('Type', 'Code', 'Checksum')
 icmp_packet = {4: namedtuple('ICMP', [*base, 'unused']),
                5: namedtuple('ICMP', [*base, 'IP_Address']),
                11: namedtuple('ICMP', [*base, 'unused']),
-               13: namedtuple('ICMP', [*base, 'identifier', 'Time_Seq',
+               13: namedtuple('ICMP', [*base, 'Identifier', 'Time_Seq',
                                        'Origin_Timestamp', 'Receive_Timestamp',
                                        'Transmit_Timestamp']),
                14: namedtuple('ICMP', [*base, 'Identifier', 'Time_Seq',
@@ -49,11 +57,11 @@ icmpcodes = {3: {0: "network-unreachable", 1: "host-unreachable",
                  6: "network-unknown", 7: "host-unknown",
                  9: "network-prohibited", 10: "host-prohibited",
                  11: "TOS-network-unreachable", 12: "TOS-host-unreachable",
-                 13: "communication-prohibited", 14: "host-precedence-violation",
+                 13: "communication-prohibited", 14: "host-precedence-violation",  # noqa: E501
                  15: "precedence-cutoff"},
              5: {0: "network-redirect", 1: "host-redirect",
                  2: "TOS-network-redirect", 3: "TOS-host-redirect"},
-             11: {0: "ttl-zero-during-transit", 1: "ttl-zero-during-reassembly"},
+             11: {0: "ttl-zero-during-transit", 1: "ttl-zero-during-reassembly"},  # noqa: E501
              12: {0: "ip-header-bad", 1: "required-option-missing", },
              40: {0: "bad-spi", 1: "authentication-failed",
                   2: "decompression-failed", 3: "decryption-failed",
