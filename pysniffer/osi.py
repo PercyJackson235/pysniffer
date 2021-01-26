@@ -23,6 +23,10 @@ arp_opcodes = {1: 'ARP Request', 2: 'ARP Reply', 3: 'RARP Request',
                4: 'RARP Reply', 5: 'DRARP Request', 6: 'DRARP Reply',
                7: 'DRARP ERROR', 8: 'InARP Request', 9: 'InARP Reply'}
 
+ipv6_packet = namedtuple('IPv6', ('Version', 'Traffic_Class', 'Flow_Label',
+                                  'Payload_Length', 'Proto', "ttl",
+                                  'Source_IP', 'Dest_IP'))
+
 base = ('Type', 'Code', 'Checksum')
 icmp_packet = {4: namedtuple('ICMP', [*base, 'unused']),
                5: namedtuple('ICMP', [*base, 'IP_Address']),

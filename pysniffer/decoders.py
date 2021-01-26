@@ -133,15 +133,27 @@ def arp(packet: bytes):
     hln, pln = static[2], static[3]
     sep = (static[2] * 2) + (static[3] * 2)
     msg, packet = packet[:sep], packet[sep:]
-    msg = list(struct.unpack(f"{hln}s{pln}s{hln}s{pln}s", msg))
+    msg = list(struct.unpack(f"!{hln}s{pln}s{hln}s{pln}s", msg))
     msg[0], msg[2] = format_mac(hexlify(msg[0])), format_mac(hexlify(msg[2]))
     msg[1], msg[3] = socket.inet_ntoa(msg[1]), socket.inet_ntoa(msg[3])
     headers = [*static] + [*msg]
     return osi.arp_packet(*headers), packet
 
 
+def ipv6(packet: bytes):
+    header, packet = packet[:40], packet[40:]
+    header = list(struct.unpack("!LHBB16s16s", header))
+    field = f"{header.pop(0):032b}"
+    for part in reversed((field[:4], field[4:12], field[12:])):
+        header.insert(0, int(part, 2))
+    header[-2] = socket.inet_ntop(socket.AF_INET6, header[-2])
+    header[-1] = socket.inet_ntop(socket.AF_INET6, header[-1])
+    return osi.ipv6_packet(*header), packet
+    # Need to add Extension Header processing
+
+
 # 0x86DD is ipv6, 0x0806 is arp
-network_layer = {0x800: ipv4, 0x86DD: None, 0x0806: arp}
+network_layer = {0x800: ipv4, 0x86DD: ipv6, 0x0806: arp}
 transport_layer = {6: tcp, 17: udp, 1: icmp}
 
 

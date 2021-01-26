@@ -31,7 +31,7 @@ class SuperSocket(object):
                     raise OSError(msg)
                 else:
                     iface = iface.get(socket.AF_INET)[1]
-        self.sock.bind((iface, 0))
+        # self.sock.bind((iface, 0))
 
     def close(self):
         self.sock.close()
@@ -43,7 +43,6 @@ class SuperSocket(object):
             packet = packet.encode()
         return self.sock.sendto(packet, (ip, 0))
 
-    @property
     def fileno(self):
         return self.sock.fileno()
 

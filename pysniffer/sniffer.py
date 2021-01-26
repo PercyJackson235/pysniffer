@@ -84,6 +84,8 @@ class Sniffer(object):
                     print(f'Error occurred: {e!r}')
                     raise
                 result = decoders.pprint(eth_header, network, transport, data)
+                if eth_header.EthType == 0x86DD and transport.__class__.__name__.lower() == "tcp":   # noqa: E501
+                    sys.exit(0)
                 if self.log:
                     self.logfile.write(result)
             except KeyboardInterrupt:
